@@ -13,23 +13,40 @@ namespace Text_Editor
 {
     public partial class Texteditor : Form
     {
-        bool fileSaved = true;
+        private bool fileSaved = true;
+        private string currentFile = null;
 
         public Texteditor()
         {
             InitializeComponent();
+
+            // Form closing event handler
+            this.FormClosing += new FormClosingEventHandler(exitProgram_FormClosing);
         }
 
-        private void quitToolStripMenuItem_Click(object sender, EventArgs e)
+        private void document_TextChanged(object sender, EventArgs e)
         {
-            var choice = MessageBox.Show("Are you sure you want to exit? This will close down the current window.", "Exit program", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-            if (choice == DialogResult.Yes)
+            // get values
+            int count = document.Text.Split(new[] {' ', '\n'}, StringSplitOptions.RemoveEmptyEntries).Length;
+            int charactersWithSpace = document.Text.Length;
+            string[] charArray = document.Text.Split(' ');
+            int charactersWithoutSpace = string.Join("", charArray).Length;
+            int lines = document.Text.Split('\n').Length;
+
+            if (fileSaved)
             {
-                this.Close();
+                this.Text = "*" + this.Text;
+                fileSaved = false;
             }
+
+            // update values
+            wordCount.Text = count.ToString();
+            charsWithoutSpace.Text = charactersWithoutSpace.ToString();
+            charsWithSpace.Text = "(" + charactersWithSpace.ToString() + ")";
+            lineCount.Text = lines.ToString();
         }
 
-        private void clearToolStripMenuItem_Click(object sender, EventArgs e)
+        private void clearDoc_Click(object sender, EventArgs e)
         {
             var choice = MessageBox.Show("Are you sure you want to clear the document? This will clear the current document.", "Clear document", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
             if (choice == DialogResult.Yes)
@@ -38,29 +55,76 @@ namespace Text_Editor
             }
         }
 
-        private void newToolStripMenuItem_Click(object sender, EventArgs e)
+        private void newFile_Click(object sender, EventArgs e)
         {
             var f = new Texteditor();
             f.Show();
         }
 
-        private void document_TextChanged(object sender, EventArgs e)
+        private void openFile_Click(object sender, EventArgs e)
         {
-            var count = document.Text.Split(new[] {' ', '\n'}, StringSplitOptions.RemoveEmptyEntries).Length;
-            var charactersWithSpace = document.Text.Length;
-            // var charactersWithoutSpace = document.Text.Join(' ', {' '});
+            OpenFileDialog fileDialog = new OpenFileDialog();
 
-            if (fileSaved)
+            if (fileDialog.ShowDialog() == DialogResult.OK)
             {
-                this.Text = "*" + this.Text;
-                fileSaved = false;
-            }
+                currentFile = fileDialog.FileName;
+                string contents = File.ReadAllText(currentFile);
 
-            wordCount.Text = count.ToString();
-            characterCount.Text = charactersWithSpace.ToString();
+                document.Text = contents;
+                this.Text = FormatTitle(currentFile);
+                fileSaved = true;
+            }
         }
 
-        private void saveAsToolStripMenuItem_Click(object sender, EventArgs e)
+        private void saveFile_Click(object sender, EventArgs e)
+        {
+            SaveFile();
+        }
+
+        private void saveAs_Click(object sender, EventArgs e)
+        {
+            PromptSaveDialog();
+        }
+
+        private void exitProgram_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        // This interferes with ExitPrompt() and this.Close()
+        // Checks if there are any unsaved changes and asks the user for action
+        private void exitProgram_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (!fileSaved)
+            {
+                e.Cancel = true;
+                var choice = MessageBox.Show("There are unsaved changes. Do you wish to save the file?", "Exit program", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+                if (choice == DialogResult.Cancel) return;
+                if (choice == DialogResult.No) fileSaved = true; this.Close();
+                if (choice == DialogResult.Yes) return; SaveFile();
+            } else
+            {
+                e.Cancel = false;
+            }
+        }
+
+        // Saves the file
+        private void SaveFile()
+        {
+            if (currentFile == null)
+            {
+                PromptSaveDialog();
+                return;
+            } else
+            {
+                File.WriteAllText(currentFile, document.Text);
+                this.Text = FormatTitle(currentFile);
+                fileSaved = true;
+            }
+        }
+
+        // Handles file save and file destination
+        private void PromptSaveDialog()
         {
             SaveFileDialog fileDialog = new SaveFileDialog();
 
@@ -68,38 +132,13 @@ namespace Text_Editor
 
             if (fileDialog.ShowDialog() == DialogResult.OK)
             {
-                string path = fileDialog.FileName;
-                File.WriteAllText(path, document.Text);
-                this.Text = FormatToTitle(path);
-                fileSaved = true;
+                currentFile = fileDialog.FileName;
+                SaveFile();
             }
         }
 
-        private void openToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            OpenFileDialog fileDialog = new OpenFileDialog();
-
-            if (fileDialog.ShowDialog() == DialogResult.OK)
-            {
-                string path = fileDialog.FileName;
-                string contents = File.ReadAllText(path);
-
-                document.Text = contents;
-                this.Text = FormatToTitle(path);
-                fileSaved = true;
-            }
-        }
-
-        private void saveToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            string fileName = "Untitled.txt";
-            File.WriteAllText(fileName, document.Text);
-            this.Text = fileName;
-            fileSaved = true;
-        }
-
-        // Formats file path into file name 
-        private string FormatToTitle(string path)
+        // Formats file path to file name 
+        private string FormatTitle(string path)
         {
             string[] entries = path.Split('\\');
             string title = entries[entries.Length - 1];

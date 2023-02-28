@@ -48,8 +48,8 @@ namespace Text_Editor
 
         private void clearDoc_Click(object sender, EventArgs e)
         {
-            var choice = MessageBox.Show("Are you sure you want to clear the document? This will clear the current document.", "Clear document", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-            if (choice == DialogResult.Yes)
+            DialogResult result = MessageBox.Show("Are you sure you want to clear the document? This will clear the current document.", "Clear document", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            if (result == DialogResult.Yes)
             {
                 document.Clear();
             }
@@ -63,6 +63,19 @@ namespace Text_Editor
 
         private void openFile_Click(object sender, EventArgs e)
         {
+            if (!fileSaved)
+            {
+                DialogResult result = UnsavedFilePrompt();
+                if (result == DialogResult.Yes)
+                {
+                    SaveFile();
+                }
+                else if (result == DialogResult.Cancel)
+                {
+                    return;
+                }
+            }
+
             OpenFileDialog fileDialog = new OpenFileDialog();
 
             if (fileDialog.ShowDialog() == DialogResult.OK)
@@ -97,15 +110,26 @@ namespace Text_Editor
         {
             if (!fileSaved)
             {
-                e.Cancel = true;
-                var choice = MessageBox.Show("There are unsaved changes. Do you wish to save the file?", "Exit program", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
-                if (choice == DialogResult.Cancel) return;
-                if (choice == DialogResult.No) fileSaved = true; this.Close();
-                if (choice == DialogResult.Yes) return; SaveFile();
-            } else
-            {
-                e.Cancel = false;
+                DialogResult result = UnsavedFilePrompt();
+                if (result == DialogResult.Cancel)
+                {
+                    e.Cancel = true;
+                } else if (result == DialogResult.No)
+                {
+                    e.Cancel = false;
+                } else if (result == DialogResult.Yes)
+                {
+                    SaveFile();
+                    if (!fileSaved) { e.Cancel = true; }
+                }
             }
+        }
+
+        // Prompts the user for file save action
+        private DialogResult UnsavedFilePrompt()
+        {
+            DialogResult result = MessageBox.Show("There are unsaved changes. Do you wish to save the file?", "Exit program", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+            return result;
         }
 
         // Saves the file
